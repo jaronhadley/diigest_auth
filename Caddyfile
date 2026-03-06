@@ -5,9 +5,7 @@
     # 2. THE FIX: Catch the React app's /dev request and mock a success!
     @dev_flags path /dev*
     handle @dev_flags {
-        respond `{"flags": {}}` 200 {
-            header Content-Type application/json
-        }
+        respond `{"flags": {}}` 200
     }
 
     # 3. Allow Python SDKs and events to connect freely
