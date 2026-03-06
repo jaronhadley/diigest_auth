@@ -1,18 +1,25 @@
 :{$PORT} {
-    # 1. THE FIX: Intercept the UI's test events and inject your real key
+    # 1. Intercept the UI's test events and inject your real key
     rewrite /e/dev_key /e/{$EVENT_KEY}
 
-    # 2. Allow Python SDKs, events, and feature flags to connect freely
+    # 2. THE FIX: Catch the React app's /dev request and mock a success!
+    @dev_flags path /dev*
+    handle @dev_flags {
+        respond `{"flags": {}}` 200 {
+            header Content-Type application/json
+        }
+    }
+
+    # 3. Allow Python SDKs and events to connect freely
     @sdk_traffic {
         path /e/*
         path /api/*
-        path /dev*
     }
     handle @sdk_traffic {
         reverse_proxy http://inngest.railway.internal:8288
     }
 
-    # 3. Allow WebSockets (for both SDKs and UI live-streaming)
+    # 4. Allow WebSockets (for both SDKs and UI live-streaming)
     @websockets {
         header Connection *Upgrade*
         header Upgrade websocket
@@ -21,20 +28,20 @@
         reverse_proxy http://inngest.railway.internal:8288
     }
 
-    # 4. The Magic Login Endpoint
+    # 5. The Magic Login Endpoint
     @unlock path /unlock/{$SECRET_LOGIN_PATH}
     handle @unlock {
         header Set-Cookie "inngest_auth=granted; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax"
         redir * /
     }
 
-    # 5. Check for the Cookie on all other traffic
+    # 6. Check for the Cookie on all other UI traffic
     @has_cookie header Cookie *inngest_auth=granted*
     handle @has_cookie {
         reverse_proxy http://inngest.railway.internal:8288
     }
 
-    # 6. Catch-All: Block everything else
+    # 7. Catch-All: Block everything else
     handle {
         respond "Unauthorized - Please use your secure login link." 401
     }
