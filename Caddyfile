@@ -18,11 +18,10 @@
     }
 
     # 3. The Magic Login Endpoint
-    # Visiting this URL gives your browser the secure auth cookie
     @unlock path /unlock/{$SECRET_LOGIN_PATH}
     handle @unlock {
         header Set-Cookie "inngest_auth=granted; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax"
-        redir /
+        redir * /
     }
 
     # 4. Check for the Cookie on all other traffic
