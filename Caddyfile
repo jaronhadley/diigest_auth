@@ -1,24 +1,39 @@
 :{$PORT} {
-    # 1. Open WebSockets (Fixes the initial socket loop)
+    # 1. Allow Python SDKs and event triggers to connect freely
+    @sdk_traffic {
+        path /e/*
+        path /api/*
+    }
+    handle @sdk_traffic {
+        reverse_proxy http://inngest.railway.internal:8288
+    }
+
+    # 2. Allow WebSockets (for both SDKs and UI live-streaming)
     @websockets {
         header Connection *Upgrade*
         header Upgrade websocket
     }
-
-    # 2. Apply the password ONLY to the root HTML and secure routes
-    # We add /_next/* and /favicon.ico to the exclusion list
-    @dashboard {
-        not path /e/*
-        not path /api/*
-        not path /_next/*
-        not path /favicon.ico
-        not header Connection *Upgrade*
+    handle @websockets {
+        reverse_proxy http://inngest.railway.internal:8288
     }
 
-    basicauth @dashboard {
-        {$UI_USERNAME} {$UI_PASSWORD_HASH}
+    # 3. The Magic Login Endpoint
+    # Visiting this URL gives your browser the secure auth cookie
+    @unlock path /unlock/{$SECRET_LOGIN_PATH}
+    handle @unlock {
+        header Set-Cookie "inngest_auth=granted; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax"
+        redir /
     }
 
-    # 3. Forward everything to your hidden Inngest server
-    reverse_proxy http://inngest.railway.internal:8288
+    # 4. Check for the Cookie on all other traffic
+    @has_cookie header Cookie *inngest_auth=granted*
+    handle @has_cookie {
+        reverse_proxy http://inngest.railway.internal:8288
+    }
+
+    # 5. Catch-All: Block everything else
+    # Notice we return 401 without the WWW-Authenticate header, so NO MORE PROMPTS!
+    handle {
+        respond "Unauthorized - Please use your secure login link." 401
+    }
 }
