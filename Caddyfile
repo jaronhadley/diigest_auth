@@ -2,18 +2,20 @@
     # 1. Intercept the UI's test events and inject your real key
     rewrite /e/dev_key /e/{$EVENT_KEY}
 
-    # 2. THE FIX: Catch the React app's /dev request and mock a success!
+    # 2. Mock the feature flags to prevent React crashes
     @dev_flags path /dev*
     handle @dev_flags {
         respond `{"flags": {}}` 200
     }
 
-    # 3. Allow Python SDKs and events to connect freely
-    @sdk_traffic {
+    # 3. THE FIX: Allow SDKs, events, and STATIC ASSETS to bypass the cookie
+    @open_paths {
         path /e/*
         path /api/*
+        path /_next/* # <-- Monaco workers live here!
+        path /favicon.ico
     }
-    handle @sdk_traffic {
+    handle @open_paths {
         reverse_proxy http://inngest.railway.internal:8288
     }
 
@@ -33,7 +35,7 @@
         redir * /
     }
 
-    # 6. Check for the Cookie on all other UI traffic
+    # 6. Check for the Cookie on the main HTML dashboard
     @has_cookie header Cookie *inngest_auth=granted*
     handle @has_cookie {
         reverse_proxy http://inngest.railway.internal:8288
