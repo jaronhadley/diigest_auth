@@ -1,20 +1,17 @@
 :{$PORT} {
-    # 1. Open the API paths for your Python SDK Workers
-    @api_paths {
-        path /e/*
-        path /api/*
-    }
-
-    # 2. Open WebSockets (Fixes the infinite auth loop)
+    # 1. Open WebSockets (Fixes the initial socket loop)
     @websockets {
         header Connection *Upgrade*
         header Upgrade websocket
     }
 
-    # 3. Apply the password ONLY to standard Dashboard HTTP traffic
+    # 2. Apply the password ONLY to the root HTML and secure routes
+    # We add /_next/* and /favicon.ico to the exclusion list
     @dashboard {
         not path /e/*
         not path /api/*
+        not path /_next/*
+        not path /favicon.ico
         not header Connection *Upgrade*
     }
 
@@ -22,6 +19,6 @@
         {$UI_USERNAME} {$UI_PASSWORD_HASH}
     }
 
-    # 4. Forward everything to your hidden Inngest server
+    # 3. Forward everything to your hidden Inngest server
     reverse_proxy http://inngest.railway.internal:8288
 }
