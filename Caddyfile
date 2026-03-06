@@ -1,23 +1,27 @@
 :{$PORT} {
-    # 1. Define the API paths that the Inngest SDKs need to reach
+    # 1. Open the API paths for your Python SDK Workers
     @api_paths {
         path /e/*
         path /api/*
     }
 
-    # 2. Define the Dashboard paths (everything else)
+    # 2. Open WebSockets (Fixes the infinite auth loop)
+    @websockets {
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+
+    # 3. Apply the password ONLY to standard Dashboard HTTP traffic
     @dashboard {
         not path /e/*
         not path /api/*
+        not header Connection *Upgrade*
     }
 
-    # 3. Apply Basic Authentication ONLY to the dashboard
     basicauth @dashboard {
-        # These variables will be injected via Railway environment variables
         {$UI_USERNAME} {$UI_PASSWORD_HASH}
     }
 
-    # 4. Forward ALL traffic to your hidden Inngest server
-    # (Replace this with your actual Railway internal Inngest URL and port)
+    # 4. Forward everything to your hidden Inngest server
     reverse_proxy http://inngest.railway.internal:8288
 }
