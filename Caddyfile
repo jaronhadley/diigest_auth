@@ -1,5 +1,8 @@
 :{$PORT} {
-    # 1. Allow Python SDKs and event triggers to connect freely
+    # 1. THE FIX: Intercept the UI's test events and inject your real key
+    rewrite /e/dev_key /e/{$EVENT_KEY}
+
+    # 2. Allow Python SDKs, events, and feature flags to connect freely
     @sdk_traffic {
         path /e/*
         path /api/*
@@ -9,7 +12,7 @@
         reverse_proxy http://inngest.railway.internal:8288
     }
 
-    # 2. Allow WebSockets (for both SDKs and UI live-streaming)
+    # 3. Allow WebSockets (for both SDKs and UI live-streaming)
     @websockets {
         header Connection *Upgrade*
         header Upgrade websocket
@@ -18,21 +21,20 @@
         reverse_proxy http://inngest.railway.internal:8288
     }
 
-    # 3. The Magic Login Endpoint
+    # 4. The Magic Login Endpoint
     @unlock path /unlock/{$SECRET_LOGIN_PATH}
     handle @unlock {
         header Set-Cookie "inngest_auth=granted; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax"
         redir * /
     }
 
-    # 4. Check for the Cookie on all other traffic
+    # 5. Check for the Cookie on all other traffic
     @has_cookie header Cookie *inngest_auth=granted*
     handle @has_cookie {
         reverse_proxy http://inngest.railway.internal:8288
     }
 
-    # 5. Catch-All: Block everything else
-    # Notice we return 401 without the WWW-Authenticate header, so NO MORE PROMPTS!
+    # 6. Catch-All: Block everything else
     handle {
         respond "Unauthorized - Please use your secure login link." 401
     }
