@@ -1,0 +1,23 @@
+:{$PORT} {
+    # 1. Define the API paths that the Inngest SDKs need to reach
+    @api_paths {
+        path /e/*
+        path /api/*
+    }
+
+    # 2. Define the Dashboard paths (everything else)
+    @dashboard {
+        not path /e/*
+        not path /api/*
+    }
+
+    # 3. Apply Basic Authentication ONLY to the dashboard
+    basicauth @dashboard {
+        # These variables will be injected via Railway environment variables
+        {$UI_USERNAME} {$UI_PASSWORD_HASH}
+    }
+
+    # 4. Forward ALL traffic to your hidden Inngest server
+    # (Replace this with your actual Railway internal Inngest URL and port)
+    reverse_proxy http://inngest.railway.internal:8288
+}
