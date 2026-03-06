@@ -3,6 +3,7 @@
     @sdk_traffic {
         path /e/*
         path /api/*
+        path /dev*
     }
     handle @sdk_traffic {
         reverse_proxy http://inngest.railway.internal:8288
